@@ -11,12 +11,13 @@ use tracing::debug;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HuffmanTable {
     pub class: HuffmanTableClass,
-    pub map: HashMap<Code, u8>,
+    pub map: HuffmanTree,
 }
+
+pub type HuffmanTree = HashMap<Code, u8>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
 #[repr(u8)]
-
 pub enum HuffmanTableClass {
     DC0 = 0x00,
     DC1 = 0x01,
@@ -29,7 +30,7 @@ pub enum HuffmanTableClass {
 /// The inner value is the bit string as integer with an prefix 1.
 /// e.g. "011" => Code(0b1011)
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Code(u16);
+pub struct Code(u32);
 
 impl Default for Code {
     fn default() -> Self {
@@ -38,7 +39,7 @@ impl Default for Code {
 }
 
 impl Code {
-    fn value(self) -> u16 {
+    fn value(self) -> u32 {
         if self.0.is_power_of_two() {
             0
         } else {
@@ -46,7 +47,11 @@ impl Code {
         }
     }
     fn len(self) -> u32 {
-        u16::BITS - 1 - self.0.leading_zeros()
+        u32::BITS - 1 - self.0.leading_zeros()
+    }
+
+    pub fn push(&mut self, x: bool) {
+        self.0 = (self.0 << 1) | (x as u32);
     }
 }
 
@@ -60,9 +65,9 @@ impl FromStr for Code {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let value = u16::from_str_radix(s, 2)
+        let value = u32::from_str_radix(s, 2)
             .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid code"))?;
-        Ok(Code(value | (1 << s.len() as u16)))
+        Ok(Code(value | (1 << s.len() as u32)))
     }
 }
 
@@ -97,8 +102,7 @@ impl<R: Read> Decoder<R> {
 
             let mut code = Code::default();
             let mut map = HashMap::new();
-            assert_eq!(counts[15], 0, "not supported");
-            for &count in &counts[0..15] {
+            for count in counts {
                 code.double();
                 for _ in 0..count {
                     let value = self.read_byte()?;
