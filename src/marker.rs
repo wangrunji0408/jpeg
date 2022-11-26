@@ -1,4 +1,4 @@
-use crate::Decoder;
+use super::Decoder;
 use num_enum::TryFromPrimitive;
 use std::io::{Error, ErrorKind, Read, Result};
 
@@ -29,13 +29,6 @@ impl Marker {
 }
 
 impl<R: Read> Decoder<R> {
-    /// Read a byte.
-    fn read_byte(&mut self) -> Result<u8> {
-        let mut buf = [0u8];
-        self.reader.read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-
     /// Read the next marker.
     pub fn next_marker(&mut self) -> Result<Marker> {
         loop {
