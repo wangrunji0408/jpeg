@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_huffman_table() {
-        tracing_subscriber::fmt::init();
+        // tracing_subscriber::fmt::init();
         let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let mut decoder = Decoder::new(file);
         while decoder.next_marker().expect("failed to read marker") != Marker::DHT {}

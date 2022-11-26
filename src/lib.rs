@@ -4,6 +4,7 @@ mod huffman;
 mod marker;
 mod quantization_table;
 mod sof0;
+mod start_of_scan;
 
 pub struct Decoder<R: Read> {
     reader: BufReader<R>,
