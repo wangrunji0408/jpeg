@@ -7,3 +7,4 @@ authors = ["Runji Wang <wangrunji0408@163.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+num_enum = "0.5"
