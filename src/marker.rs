@@ -1,6 +1,7 @@
 use super::Decoder;
 use num_enum::TryFromPrimitive;
 use std::io::{Error, ErrorKind, Read, Result};
+use tracing::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
@@ -46,6 +47,7 @@ impl<R: Read> Decoder<R> {
                     format!("Invalid marker: 0x{:02X}", byte),
                 )
             })?;
+            debug!(?marker, "read marker");
             return Ok(marker);
         }
     }

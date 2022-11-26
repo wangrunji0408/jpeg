@@ -1,5 +1,6 @@
 use super::Decoder;
 use std::io::{Error, ErrorKind, Read, Result};
+use tracing::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuantizationTable {
@@ -10,12 +11,16 @@ pub struct QuantizationTable {
 impl<R: Read> Decoder<R> {
     /// Read the [`QuantizationTable`].
     pub fn read_quantization_table(&mut self) -> Result<Vec<QuantizationTable>> {
-        let mut len = self.read_u16()? - 2;
+        let mut len = self.read_u16()?;
+        debug!(len, "read section DQT");
+
+        len -= 2;
         let mut tables = vec![];
         while len != 0 {
             let byte = self.read_byte()?;
             let precision = byte >> 4;
             let id = byte & 0x0F;
+            debug!(id, precision, "read quantization table");
             match precision {
                 0 => {
                     let mut values = [0u16; 64];
@@ -53,6 +58,7 @@ mod tests {
 
     #[test]
     fn test_read_quantization_table() {
+        // tracing_subscriber::fmt::init();
         let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let mut decoder = Decoder::new(file);
         while decoder.next_marker().expect("failed to read marker") != Marker::DQT {}

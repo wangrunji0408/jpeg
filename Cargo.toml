@@ -8,3 +8,5 @@ authors = ["Runji Wang <wangrunji0408@163.com>"]
 
 [dependencies]
 num_enum = "0.5"
+tracing = "0.1"
+tracing-subscriber = "0.3"
