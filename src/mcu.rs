@@ -16,9 +16,7 @@ pub struct Mcu {
 
 /// 8x8 Block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Block {
-    x: [i16; 64],
-}
+pub struct Block([i16; 64]);
 
 impl<R: Read> Decoder<R> {
     /// Read minimum coded units (MCU).
@@ -30,15 +28,14 @@ impl<R: Read> Decoder<R> {
     ) -> Result<Vec<Mcu>> {
         let mut huffman_tables = Vec::with_capacity(3);
         for id in sos.table_mapping {
-            let err = |class| error(format!("huffman table not found: {class:?}"));
             let dc = huffman
                 .iter()
                 .find(|h| h.class == id.dc)
-                .ok_or_else(|| err(id.dc))?;
+                .ok_or_else(|| error(format!("huffman table not found: {:?}", id.dc)))?;
             let ac = huffman
                 .iter()
                 .find(|h| h.class == id.ac)
-                .ok_or_else(|| err(id.ac))?;
+                .ok_or_else(|| error(format!("huffman table not found: {:?}", id.ac)))?;
             huffman_tables.push((&dc.map, &ac.map));
         }
         McuReader {
@@ -76,10 +73,9 @@ impl<R: Read> McuReader<'_, R> {
     fn read_mcu(&mut self) -> Result<Mcu> {
         let mut blocks = Vec::with_capacity(6);
         for (id, component) in self.sof.component_infos.iter().enumerate() {
-            let (dc, ac) = self.huffman_tables[id];
             for _ in 0..component.vertical_sampling {
                 for _ in 0..component.horizontal_sampling {
-                    let block = self.read_block(dc, ac, id)?;
+                    let block = self.read_block(id)?;
                     blocks.push(block);
                 }
             }
@@ -88,28 +84,24 @@ impl<R: Read> McuReader<'_, R> {
     }
 
     /// Read a minimum coded unit (MCU).
-    fn read_block(&mut self, dc: &HuffmanTree, ac: &HuffmanTree, id: usize) -> Result<Block> {
-        let mut block = Block { x: [0; 64] };
-        block.x[0] = self.read_dc(dc, id)?;
+    fn read_block(&mut self, id: usize) -> Result<Block> {
+        let (dc, ac) = self.huffman_tables[id];
+        let mut x = [0; 64];
+        x[0] = self.read_dc(dc, id)?;
         let mut i = 1;
         while i < 64 {
-            match self.read_ac(ac)? {
-                AcValue::AllZeros => {
-                    // block.x[i..].fill(0);
-                    i = 64;
-                }
-                AcValue::SixteenZeros => {
-                    // block.x[i..i + 16].fill(0);
-                    i += 16;
-                }
-                AcValue::RunLength { zeros, value } => {
-                    // block.x[i..i + zeros].fill(0);
-                    block.x[i + zeros] = value;
+            match self.reader.read_decode_haffman(ac)? {
+                0x00 => break,
+                0xF0 => i += 16,
+                code => {
+                    let zeros = (code >> 4) as usize;
+                    let value = self.reader.read_value(code & 0x0F)?;
+                    x[i + zeros] = value;
                     i += zeros + 1;
                 }
             }
         }
-        Ok(block)
+        Ok(Block(x))
     }
 
     /// Read a DC value.
@@ -119,24 +111,6 @@ impl<R: Read> McuReader<'_, R> {
         *dc += self.reader.read_value(len)?;
         Ok(*dc)
     }
-
-    /// Read an AC value.
-    fn read_ac(&mut self, map: &HuffmanTree) -> Result<AcValue> {
-        Ok(match self.reader.read_decode_haffman(map)? {
-            0x00 => AcValue::AllZeros,
-            0xF0 => AcValue::SixteenZeros,
-            x => AcValue::RunLength {
-                zeros: (x >> 4) as usize,
-                value: self.reader.read_value(x & 0x0F)?,
-            },
-        })
-    }
-}
-
-enum AcValue {
-    SixteenZeros,
-    AllZeros,
-    RunLength { zeros: usize, value: i16 },
 }
 
 struct BitReader<'a, R: Read> {
