@@ -1,4 +1,5 @@
 use super::Decoder;
+use crate::start_of_frame_0::Component;
 use std::io::{Read, Result};
 use tracing::debug;
 
@@ -25,8 +26,13 @@ impl<R: Read> Decoder<R> {
         assert_eq!(component_number, 3);
         for _ in 0..component_number {
             let component = self.read_byte()?;
+            Component::try_from(component).map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("invalid component: {}", component),
+                )
+            })?;
             let id = self.read_byte()?;
-            // Y => 1, Cb => 2, Cr => 3
             table_mapping[component as usize - 1] = HuffmanTableId {
                 dc: id >> 4,
                 ac: id & 0x0f,
