@@ -1,5 +1,5 @@
-use super::Decoder;
-use std::io::{Error, ErrorKind, Read, Result};
+use super::{error, Decoder};
+use std::io::{Read, Result};
 use tracing::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,12 +38,7 @@ impl<R: Read> Decoder<R> {
                     tables.push(QuantizationTable { id, values });
                     len -= 1 + 128;
                 }
-                _ => {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
-                        format!("Invalid precision: {}", precision),
-                    ))
-                }
+                _ => return Err(error(format!("Invalid precision: {}", precision))),
             }
         }
         Ok(tables)

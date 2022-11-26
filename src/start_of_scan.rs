@@ -29,15 +29,11 @@ impl<R: Read> Decoder<R> {
         let component_number = self.read_byte()?;
         assert_eq!(component_number, 3);
         for _ in 0..component_number {
-            let component = self.read_byte()?;
-            Component::try_from(component).map_err(|_| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("invalid component: {}", component),
-                )
-            })?;
+            let component_id = self.read_byte()?;
+            Component::try_from(component_id)
+                .map_err(|_| error(format!("invalid component id: {}", component_id)))?;
             let id = self.read_byte()?;
-            table_mapping[component as usize - 1] = HuffmanTableId {
+            table_mapping[component_id as usize - 1] = HuffmanTableId {
                 dc: match id >> 4 {
                     0 => DC0,
                     1 => DC1,

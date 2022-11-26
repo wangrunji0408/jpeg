@@ -1,9 +1,9 @@
-use super::Decoder;
+use super::{error, Decoder};
 use num_enum::TryFromPrimitive;
 use std::{
     collections::HashMap,
     fmt::Debug,
-    io::{Error, ErrorKind, Read, Result},
+    io::{Error, Read, Result},
     str::FromStr,
 };
 use tracing::debug;
@@ -65,8 +65,7 @@ impl FromStr for Code {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let value = u32::from_str_radix(s, 2)
-            .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid code"))?;
+        let value = u32::from_str_radix(s, 2).map_err(|_| error("Invalid code"))?;
         Ok(Code(value | (1 << s.len() as u32)))
     }
 }
@@ -89,12 +88,8 @@ impl<R: Read> Decoder<R> {
         let mut tables = vec![];
         while len != 0 {
             let byte = self.read_byte()?;
-            let class = HuffmanTableClass::try_from(byte).map_err(|_| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("invalid huffman table class: 0x{byte:02x}"),
-                )
-            })?;
+            let class = HuffmanTableClass::try_from(byte)
+                .map_err(|_| error(format!("invalid huffman table class: 0x{byte:02x}")))?;
             debug!(?class, "read huffman table");
             let mut counts = [0; 16];
             self.reader.read_exact(&mut counts)?;

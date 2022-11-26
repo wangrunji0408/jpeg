@@ -1,4 +1,4 @@
-use super::Decoder;
+use crate::{error, Decoder};
 use num_enum::TryFromPrimitive;
 use std::io::{Read, Result};
 use tracing::debug;
@@ -58,12 +58,8 @@ impl<R: Read> Decoder<R> {
         let mut component_infos = [ComponentInfo::default(); 3];
         for _ in 0..number_of_component {
             let component_id = self.read_byte()?;
-            Component::try_from(component_id).map_err(|_| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("invalid component id: {}", component_id),
-                )
-            })?;
+            Component::try_from(component_id)
+                .map_err(|_| error(format!("invalid component id: {}", component_id)))?;
             let sampling = self.read_byte()?;
             let quant_table_id = self.read_byte()?;
             component_infos[component_id as usize - 1] = ComponentInfo {
