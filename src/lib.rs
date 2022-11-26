@@ -3,6 +3,7 @@ use std::io::{BufReader, Read, Result};
 mod huffman;
 mod marker;
 mod quantization_table;
+mod sof0;
 
 pub struct Decoder<R: Read> {
     reader: BufReader<R>,
