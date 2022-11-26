@@ -1,5 +1,9 @@
-use super::Decoder;
-use crate::start_of_frame_0::Component;
+use crate::{
+    error,
+    huffman::HuffmanTableClass::{self, *},
+    start_of_frame_0::Component,
+    Decoder,
+};
 use std::io::{Read, Result};
 use tracing::debug;
 
@@ -10,8 +14,8 @@ pub struct StartOfScanInfo {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HuffmanTableId {
-    pub dc: u8,
-    pub ac: u8,
+    pub dc: HuffmanTableClass,
+    pub ac: HuffmanTableClass,
 }
 
 impl<R: Read> Decoder<R> {
@@ -20,7 +24,7 @@ impl<R: Read> Decoder<R> {
         let len = self.read_u16()?;
         debug!(len, "read section SOS");
 
-        let mut table_mapping = [HuffmanTableId { dc: 0, ac: 0 }; 3];
+        let mut table_mapping = [HuffmanTableId { dc: DC0, ac: AC0 }; 3];
 
         let component_number = self.read_byte()?;
         assert_eq!(component_number, 3);
@@ -34,8 +38,16 @@ impl<R: Read> Decoder<R> {
             })?;
             let id = self.read_byte()?;
             table_mapping[component as usize - 1] = HuffmanTableId {
-                dc: id >> 4,
-                ac: id & 0x0f,
+                dc: match id >> 4 {
+                    0 => DC0,
+                    1 => DC1,
+                    dc => return Err(error(format!("invalid DC table: {dc}"))),
+                },
+                ac: match id & 0x0F {
+                    0 => AC0,
+                    1 => AC1,
+                    ac => return Err(error(format!("invalid AC table: {ac}"))),
+                },
             };
         }
         // skip 3 bytes
@@ -64,9 +76,9 @@ mod tests {
             sos,
             StartOfScanInfo {
                 table_mapping: [
-                    HuffmanTableId { dc: 0, ac: 0 },
-                    HuffmanTableId { dc: 1, ac: 1 },
-                    HuffmanTableId { dc: 1, ac: 1 },
+                    HuffmanTableId { dc: DC0, ac: AC0 },
+                    HuffmanTableId { dc: DC1, ac: AC1 },
+                    HuffmanTableId { dc: DC1, ac: AC1 },
                 ]
             }
         );

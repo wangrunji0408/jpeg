@@ -18,6 +18,24 @@ pub struct ComponentInfo {
     pub quant_table_id: u8,
 }
 
+impl StartOfFrameInfo {
+    pub fn mcu_width(&self) -> u16 {
+        let max_hs = (self.component_infos.iter())
+            .map(|c| c.horizontal_sampling)
+            .max()
+            .unwrap();
+        (self.width - 1) / (8 * max_hs as u16) + 1
+    }
+
+    pub fn mcu_height(&self) -> u16 {
+        let max_vs = (self.component_infos.iter())
+            .map(|c| c.vertical_sampling)
+            .max()
+            .unwrap();
+        (self.height - 1) / (8 * max_vs as u16) + 1
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Component {
