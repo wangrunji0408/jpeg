@@ -66,7 +66,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_read() {
+    fn test_read_mcu() {
         tracing_subscriber::fmt::init();
         let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let mut decoder = Decoder::new(file);

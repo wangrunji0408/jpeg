@@ -1,6 +1,6 @@
-use super::Decoder;
+use super::{error, Decoder};
 use num_enum::TryFromPrimitive;
-use std::io::{Error, ErrorKind, Read, Result};
+use std::io::{Read, Result};
 use tracing::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
@@ -33,22 +33,21 @@ impl Marker {
 impl<R: Read> Decoder<R> {
     /// Read the next marker.
     pub fn next_marker(&mut self) -> Result<Marker> {
+        let mut count = 0;
         loop {
             let byte = self.read_byte()?;
+            count += 1;
             if byte != Marker::PREFIX {
                 continue;
             }
             let byte = self.read_byte()?;
+            count += 1;
             if byte == 0x00 {
                 continue;
             }
-            let marker = Marker::try_from(byte).map_err(|_| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Invalid marker: 0x{:02X}", byte),
-                )
-            })?;
-            debug!(?marker, "read marker");
+            let marker = Marker::try_from(byte)
+                .map_err(|_| error(format!("Invalid marker: 0x{:02X}", byte)))?;
+            debug!(?marker, skip = count - 2, "read marker");
             return Ok(marker);
         }
     }
