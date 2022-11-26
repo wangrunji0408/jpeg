@@ -1,5 +1,6 @@
 use std::io::{BufReader, Read, Result};
 
+mod huffman;
 mod marker;
 mod quantization_table;
 

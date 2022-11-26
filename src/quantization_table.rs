@@ -24,16 +24,16 @@ impl<R: Read> Decoder<R> {
             match precision {
                 0 => {
                     let mut values = [0u16; 64];
-                    for i in 0..64 {
-                        values[i] = self.read_byte()? as u16;
+                    for v in &mut values {
+                        *v = self.read_byte()? as u16;
                     }
                     tables.push(QuantizationTable { id, values });
                     len -= 1 + 64;
                 }
                 1 => {
                     let mut values = [0u16; 64];
-                    for i in 0..64 {
-                        values[i] = self.read_u16()?;
+                    for v in &mut values {
+                        *v = self.read_u16()?;
                     }
                     tables.push(QuantizationTable { id, values });
                     len -= 1 + 128;

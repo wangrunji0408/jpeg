@@ -5,6 +5,7 @@ use tracing::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
 #[repr(u8)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Marker {
     /// Start Of Image
     SOI = 0xD8,
