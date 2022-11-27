@@ -121,7 +121,7 @@ impl Mcu {
 }
 
 impl Block {
-    fn dequantize(&self, qt: &[i16; 64]) -> Self {
+    pub fn dequantize(&self, qt: &[i16; 64]) -> Self {
         let mut block = *self;
         for i in 0..64 {
             block.0[i] *= qt[i];
@@ -129,7 +129,7 @@ impl Block {
         block
     }
 
-    fn zigzag(&self) -> Self {
+    pub fn zigzag(&self) -> Self {
         #[rustfmt::skip]
         const ZIGZAG: [usize; 64] = [
              0,  1,  5,  6, 14, 15, 27, 28,
@@ -149,7 +149,7 @@ impl Block {
         Block(x)
     }
 
-    fn idct(&self) -> Self {
+    pub fn idct(&self) -> Self {
         fn cc(i: usize, j: usize) -> f32 {
             match (i, j) {
                 (0, 0) => 0.5,

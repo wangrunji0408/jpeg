@@ -3,7 +3,7 @@ use std::io::{BufReader, Read, Result};
 mod decode;
 mod huffman;
 mod marker;
-mod mcu;
+pub mod mcu;
 pub mod ppm;
 mod quantization_table;
 mod start_of_frame_0;
