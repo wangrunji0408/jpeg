@@ -13,7 +13,7 @@ use std::{
 /// Minimum Coded Unit.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mcu {
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
 }
 
 /// 8x8 Block.
@@ -63,7 +63,7 @@ impl<R: Read> McuReader<R> {
         }
         Ok(McuReader {
             reader: BitReader::new(decoder),
-            total: sof.mcu_height() as usize * sof.mcu_width() as usize,
+            total: sof.mcu_height_num() as usize * sof.mcu_width_num() as usize,
             sof,
             huffman_tables,
             last_dc: [0; 3],
@@ -174,5 +174,19 @@ impl<R: Read> BitReader<R> {
         let ret = (self.buf & (1 << (7 - self.count))) != 0;
         self.count = if self.count == 7 { 0 } else { self.count + 1 };
         Ok(ret)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_mcu() {
+        // tracing_subscriber::fmt::init();
+        let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
+        let decoder = Decoder::new(file);
+        let (mut reader, _) = decoder.read().unwrap();
+        while let Some(_mcu) = reader.next().unwrap() {}
     }
 }

@@ -9,6 +9,8 @@ pub struct StartOfFrameInfo {
     pub height: u16,
     pub width: u16,
     pub component_infos: [ComponentInfo; 3], // [Y, Cb, Cr]
+    pub max_horizontal_sampling: u8,
+    pub max_vertical_sampling: u8,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -20,19 +22,19 @@ pub struct ComponentInfo {
 
 impl StartOfFrameInfo {
     pub fn mcu_width(&self) -> u16 {
-        let max_hs = (self.component_infos.iter())
-            .map(|c| c.horizontal_sampling)
-            .max()
-            .unwrap();
-        (self.width - 1) / (8 * max_hs as u16) + 1
+        8 * self.max_horizontal_sampling as u16
     }
 
     pub fn mcu_height(&self) -> u16 {
-        let max_vs = (self.component_infos.iter())
-            .map(|c| c.vertical_sampling)
-            .max()
-            .unwrap();
-        (self.height - 1) / (8 * max_vs as u16) + 1
+        8 * self.max_vertical_sampling as u16
+    }
+
+    pub fn mcu_width_num(&self) -> u16 {
+        (self.width - 1) / self.mcu_width() + 1
+    }
+
+    pub fn mcu_height_num(&self) -> u16 {
+        (self.height - 1) / self.mcu_height() + 1
     }
 }
 
@@ -73,6 +75,14 @@ impl<R: Read> Decoder<R> {
             precision,
             height,
             width,
+            max_horizontal_sampling: (component_infos.iter())
+                .map(|c| c.horizontal_sampling)
+                .max()
+                .unwrap(),
+            max_vertical_sampling: (component_infos.iter())
+                .map(|c| c.vertical_sampling)
+                .max()
+                .unwrap(),
             component_infos,
         })
     }
@@ -116,6 +126,8 @@ mod tests {
                         quant_table_id: 1,
                     },
                 ],
+                max_horizontal_sampling: 2,
+                max_vertical_sampling: 2,
             }
         );
     }
