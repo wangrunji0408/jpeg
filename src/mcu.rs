@@ -1,7 +1,7 @@
 use super::Decoder;
 use crate::{
     error,
-    huffman::{Code, HuffmanTable, HuffmanTree},
+    huffman::{HuffmanTable, HuffmanTree},
     start_of_frame_0::StartOfFrameInfo,
     start_of_scan::StartOfScanInfo,
 };
@@ -136,13 +136,15 @@ impl<R: Read> BitReader<R> {
     }
 
     fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
-        let mut code = Code::default();
-        loop {
-            code.push(self.read_bit()?);
-            if let Some(&value) = map.get(&code) {
+        let mut code = 0;
+        for len in 1..=16 {
+            code |= (self.read_bit()? as u16) << (16 - len);
+            let (l, value) = map.get(code);
+            if l == len {
                 return Ok(value);
             }
         }
+        unreachable!("haffman not match");
     }
 
     /// Read an encoded value in length.
