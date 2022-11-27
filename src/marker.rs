@@ -23,6 +23,8 @@ pub enum Marker {
     SOF0 = 0xC0,
     /// Start Of Scan
     SOS = 0xDA,
+    /// Define Restart Interval
+    DRI = 0xDD,
     /// Comment
     COM = 0xFE,
     /// End Of Image

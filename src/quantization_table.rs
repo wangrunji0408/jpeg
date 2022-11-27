@@ -1,11 +1,23 @@
 use super::{error, Decoder};
-use std::io::{Read, Result};
+use std::{io::{Read, Result}, fmt::Debug};
 use tracing::debug;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct QuantizationTable {
     pub id: u8,
     pub values: [i16; 64],
+}
+
+impl Debug for QuantizationTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for i in 0..8 {
+            for j in 0..8 {
+                write!(f, " {}", self.values[i * 8 + j])?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
 }
 
 impl<R: Read> Decoder<R> {
@@ -27,7 +39,9 @@ impl<R: Read> Decoder<R> {
                     for v in &mut values {
                         *v = self.read_byte()? as i16;
                     }
-                    tables.push(QuantizationTable { id, values });
+                    let table = QuantizationTable { id, values };
+                    debug!("\n{table:?}");
+                    tables.push(table);
                     len -= 1 + 64;
                 }
                 1 => {
@@ -35,7 +49,9 @@ impl<R: Read> Decoder<R> {
                     for v in &mut values {
                         *v = self.read_u16()? as i16;
                     }
-                    tables.push(QuantizationTable { id, values });
+                    let table = QuantizationTable { id, values };
+                    debug!("\n{table:?}");
+                    tables.push(table);
                     len -= 1 + 128;
                 }
                 _ => return Err(error(format!("Invalid precision: {}", precision))),

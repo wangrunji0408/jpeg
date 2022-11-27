@@ -75,6 +75,10 @@ impl<R: Read> McuReader<R> {
         if self.i == self.total {
             return Ok(None);
         }
+        if self.reader.reset {
+            self.reader.reset();
+            self.last_dc = [0; 3];
+        }
         let mut blocks = Vec::with_capacity(6);
         for (id, component) in self.sof.component_infos.clone().iter().enumerate() {
             for _ in 0..component.vertical_sampling {
@@ -124,6 +128,9 @@ struct BitReader<R: Read> {
     buf: u32,
     /// The lower `count` bits of `buf` is valid.
     count: u8,
+    /// Meet a RST or EOI marker.
+    /// If set, should not read from `reader` any more and always return 0.
+    reset: bool,
 }
 
 impl<R: Read> BitReader<R> {
@@ -132,7 +139,14 @@ impl<R: Read> BitReader<R> {
             reader,
             buf: 0,
             count: 0,
+            reset: false,
         }
+    }
+
+    fn reset(&mut self) {
+        self.buf = 0;
+        self.count = 0;
+        self.reset = false;
     }
 
     fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
@@ -162,13 +176,24 @@ impl<R: Read> BitReader<R> {
     fn peek(&mut self, n: u8) -> Result<u16> {
         debug_assert!(n <= 16);
         while self.count < n {
+            if self.reset {
+                self.buf <<= 8;
+                self.count += 8;
+                continue;
+            }
             let mut b = 0;
             self.reader.read(std::slice::from_mut(&mut b))?;
+            if b == 0xFF {
+                let mut c = 0;
+                self.reader.read_exact(std::slice::from_mut(&mut c))?;
+                // skip RSTn (0xDn) or EOI (0xD9)
+                if c != 0 {
+                    self.reset = true;
+                    continue;
+                }
+            }
             self.buf = (self.buf << 8) | b as u32;
             self.count += 8;
-            if b == 0xFF {
-                self.reader.read(&mut [0])?;
-            }
         }
         Ok((self.buf >> (self.count - n)) as u16)
     }
