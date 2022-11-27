@@ -11,6 +11,8 @@ pub enum Marker {
     SOI = 0xD8,
     /// Application specific 0
     APP0 = 0xE0,
+    /// Application specific 1
+    APP1 = 0xE1,
     /// Application specific C
     APPC = 0xEC,
     /// Define Quantization Table
@@ -21,6 +23,8 @@ pub enum Marker {
     SOF0 = 0xC0,
     /// Start Of Scan
     SOS = 0xDA,
+    /// Comment
+    COM = 0xFE,
     /// End Of Image
     EOI = 0xD9,
 }

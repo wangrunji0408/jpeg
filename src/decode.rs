@@ -89,17 +89,19 @@ impl Mcu {
             for h in 0..sof.max_horizontal_sampling {
                 let y = self.blocks[(v * sof.max_horizontal_sampling + h) as usize].to_f32();
                 let cb = if size[1] == 1 && sof.max_vertical_sampling == 2 {
-                    self.blocks[offset[1]].upsample_2x2(v as usize, h as usize)
+                    self.blocks[offset[1]]
+                        .upsample_2x2(v as usize, h as usize)
+                        .to_f32()
                 } else {
-                    todo!("select Cb")
-                }
-                .to_f32();
+                    self.blocks[offset[1]].to_f32()
+                };
                 let cr = if size[2] == 1 && sof.max_vertical_sampling == 2 {
-                    self.blocks[offset[2]].upsample_2x2(v as usize, h as usize)
+                    self.blocks[offset[2]]
+                        .upsample_2x2(v as usize, h as usize)
+                        .to_f32()
                 } else {
-                    todo!("select Cr")
-                }
-                .to_f32();
+                    self.blocks[offset[2]].to_f32()
+                };
                 let mut rgb = [RGB::default(); 64];
                 for i in 0..64 {
                     let r = chomp(y[i] + 1.402 * cr[i] + 128.0);

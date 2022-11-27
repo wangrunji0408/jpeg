@@ -31,13 +31,11 @@ impl<R: Read> Decoder<R> {
         loop {
             match self.next_marker()? {
                 Marker::EOI => return Err(error("unexpected EOI")),
-                Marker::SOI => {}
-                Marker::APP0 => {}
-                Marker::APPC => {}
                 Marker::DQT => quantization_tables.extend(self.read_quantization_table()?),
                 Marker::DHT => huffman_tables.extend(self.read_huffman_table()?),
                 Marker::SOF0 => sof = Some(self.read_start_of_frame_0()?),
                 Marker::SOS => break,
+                _ => {}
             }
         }
         let sos = self.read_start_of_scan()?;

@@ -1,8 +1,22 @@
+use clap::Parser;
 use jpeg_labs::{ppm::PpmWriter, Decoder};
 
+/// JPEG to PPM.
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap()]
+    file: String,
+
+    #[clap(short, long)]
+    output: String,
+}
+
 fn main() {
-    let file = std::fs::File::open("data/autumn.jpg").expect("failed to open file");
-    let out = std::fs::File::create("data/autumn.ppm").expect("failed to create file");
+    let args = Args::parse();
+
+    let file = std::fs::File::open(args.file).expect("failed to open file");
+    let out = std::fs::File::create(args.output).expect("failed to create file");
     let decoder = Decoder::new(file);
     let (mut reader, decoder) = decoder.read().unwrap();
     let mut writer = PpmWriter::new(out, decoder.width() as _, decoder.height() as _).unwrap();
