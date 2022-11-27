@@ -9,5 +9,6 @@ authors = ["Runji Wang <wangrunji0408@163.com>"]
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 num_enum = "0.5"
+lazy_static = "1"
 tracing = "0.1"
 tracing-subscriber = "0.3"

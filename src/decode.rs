@@ -150,8 +150,6 @@ impl Block {
     }
 
     fn idct(&self) -> Self {
-        use std::f32::consts::PI;
-
         fn cc(i: usize, j: usize) -> f32 {
             match (i, j) {
                 (0, 0) => 0.5,
@@ -159,16 +157,28 @@ impl Block {
                 _ => 1.0,
             }
         }
+        lazy_static::lazy_static! {
+            static ref IDCT: [[f32; 8]; 8] = {
+                use std::f32::consts::PI;
+                let mut m = [[0.0; 8]; 8];
+                for i in 0..8 {
+                    for j in 0..8 {
+                        m[i][j] = ((2 * i + 1) as f32 * j as f32 * PI / 16.0).cos();
+                    }
+                }
+                m
+            };
+        }
 
         let mut tmp: [i16; 64] = [0; 64];
+        let this = self.to_f32();
+        let idct = &*IDCT;
         for i in 0..8 {
             for j in 0..8 {
                 let mut v = 0.0;
                 for x in 0..8 {
                     for y in 0..8 {
-                        let i_cos = ((2 * i + 1) as f32 * PI / 16.0 * x as f32).cos();
-                        let j_cos = ((2 * j + 1) as f32 * PI / 16.0 * y as f32).cos();
-                        v += cc(x, y) * self.0[x * 8 + y] as f32 * i_cos * j_cos;
+                        v += cc(x, y) * idct[i][x] * idct[j][y] * this[x * 8 + y];
                     }
                 }
                 tmp[i * 8 + j] = (v / 4.0) as i16;
