@@ -13,6 +13,7 @@ struct Args {
 }
 
 fn main() {
+    tracing_subscriber::fmt::init();
     let args = Args::parse();
 
     let file = std::fs::File::open(args.file).expect("failed to open file");

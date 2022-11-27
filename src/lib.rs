@@ -40,7 +40,7 @@ impl<R: Read> Decoder<R> {
         }
         let sos = self.read_start_of_scan()?;
         let sof = sof.take().expect("SOF not found");
-        let reader = McuReader::from_decoder(self, sof.clone(), sos, &huffman_tables)?;
+        let reader = McuReader::new(self.reader, sof.clone(), sos, &huffman_tables)?;
         let decoder = McuDecoder::new(sof, quantization_tables);
         Ok((reader, decoder))
     }

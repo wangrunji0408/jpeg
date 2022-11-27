@@ -1,4 +1,3 @@
-use super::Decoder;
 use crate::{
     error,
     huffman::{HuffmanTable, HuffmanTree},
@@ -7,7 +6,7 @@ use crate::{
 };
 use std::{
     fmt::Debug,
-    io::{Read, Result},
+    io::{BufReader, Read, Result},
 };
 
 /// Minimum Coded Unit.
@@ -43,8 +42,8 @@ pub struct McuReader<R: Read> {
 
 impl<R: Read> McuReader<R> {
     /// Read minimum coded units (MCU).
-    pub(super) fn from_decoder(
-        decoder: Decoder<R>,
+    pub(super) fn new(
+        decoder: BufReader<R>,
         sof: StartOfFrameInfo,
         sos: StartOfScanInfo,
         huffman: &[HuffmanTable],
@@ -121,13 +120,14 @@ impl<R: Read> McuReader<R> {
 }
 
 struct BitReader<R: Read> {
-    reader: Decoder<R>,
-    buf: u8,
+    reader: BufReader<R>,
+    buf: u32,
+    /// The lower `count` bits of `buf` is valid.
     count: u8,
 }
 
 impl<R: Read> BitReader<R> {
-    fn new(reader: Decoder<R>) -> Self {
+    fn new(reader: BufReader<R>) -> Self {
         Self {
             reader,
             buf: 0,
@@ -136,15 +136,12 @@ impl<R: Read> BitReader<R> {
     }
 
     fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
-        let mut code = 0;
-        for len in 1..=16 {
-            code |= (self.read_bit()? as u16) << (16 - len);
-            let (l, value) = map.get(code);
-            if l == len {
-                return Ok(value);
-            }
-        }
-        unreachable!("haffman not match");
+        let x = self.peek(16)?;
+        let (len, val) = map.get(x);
+        assert_ne!(len, 0);
+        self.consume(len);
+        tracing::debug!("haffman: {len} {val}");
+        Ok(val)
     }
 
     /// Read an encoded value in length.
@@ -152,36 +149,41 @@ impl<R: Read> BitReader<R> {
         if len == 0 {
             return Ok(0);
         }
-        let mut ret: i16 = 1;
-        let first = self.read_bit()?;
-        for _ in 1..len {
-            let b = self.read_bit()?;
-            ret = (ret << 1) + (first == b) as i16;
+        let mut v = self.peek(len)? as i16;
+        if v >> (len - 1) == 0 {
+            v -= (1 << len) - 1;
         }
-        ret = if first { ret } else { -ret };
-        Ok(ret)
+        self.consume(len);
+        tracing::debug!("value: {len} {v}");
+        Ok(v)
     }
 
-    /// Read a bit.
-    fn read_bit(&mut self) -> Result<bool> {
-        if self.count == 0 {
-            self.buf = self.reader.read_byte()?;
-            if self.buf == 0xFF {
-                let check = self.reader.read_byte()?;
-                if check != 0 {
-                    return Err(error("0xFF must be followed with 0x00 in compressed data"));
-                }
+    /// Peek the next `n` bits.
+    fn peek(&mut self, n: u8) -> Result<u16> {
+        debug_assert!(n <= 16);
+        while self.count < n {
+            let mut b = 0;
+            self.reader.read(std::slice::from_mut(&mut b))?;
+            self.buf = (self.buf << 8) | b as u32;
+            self.count += 8;
+            if b == 0xFF {
+                self.reader.read(&mut [0])?;
             }
         }
-        let ret = (self.buf & (1 << (7 - self.count))) != 0;
-        self.count = if self.count == 7 { 0 } else { self.count + 1 };
-        Ok(ret)
+        Ok((self.buf >> (self.count - n)) as u16)
+    }
+
+    /// Consume `n` bits.
+    fn consume(&mut self, n: u8) {
+        self.count -= n;
+        self.buf &= (1 << self.count) - 1;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Decoder;
 
     #[test]
     fn test_read_mcu() {
@@ -190,5 +192,20 @@ mod tests {
         let decoder = Decoder::new(file);
         let (mut reader, _) = decoder.read().unwrap();
         while let Some(_mcu) = reader.next().unwrap() {}
+    }
+
+    #[test]
+    fn bit_reader() {
+        let buf = [0xFF, 0x00, 0b10101010, 0b00000000, 0xFF, 0xAA];
+        let mut reader = BitReader::new(BufReader::new(&buf[..]));
+        assert_eq!(reader.peek(7).unwrap(), 0b1111111);
+        assert_eq!(reader.peek(16).unwrap(), 0b11111111_10101010);
+        reader.consume(4);
+        assert_eq!(reader.peek(16).unwrap(), 0b1111_10101010_0000);
+        reader.consume(4);
+        assert_eq!(reader.peek(16).unwrap(), 0b10101010_00000000);
+        assert_eq!(reader.read_value(3).unwrap(), 5);
+        assert_eq!(reader.read_value(2).unwrap(), -2);
+        assert_eq!(reader.peek(11).unwrap(), 0b010_00000000);
     }
 }
