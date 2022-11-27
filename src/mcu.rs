@@ -140,7 +140,7 @@ impl<R: Read> BitReader<R> {
         let (len, val) = map.get(x);
         assert_ne!(len, 0);
         self.consume(len);
-        tracing::debug!("haffman: {len} {val}");
+        // tracing::debug!("haffman: {len} {val}");
         Ok(val)
     }
 
@@ -154,7 +154,7 @@ impl<R: Read> BitReader<R> {
             v -= (1 << len) - 1;
         }
         self.consume(len);
-        tracing::debug!("value: {len} {v}");
+        // tracing::debug!("value: {len} {v}");
         Ok(v)
     }
 

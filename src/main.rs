@@ -22,15 +22,22 @@ fn main() {
     let (mut reader, decoder) = decoder.read().unwrap();
     let mut writer = PpmWriter::new(out, decoder.width() as _, decoder.height() as _).unwrap();
     let mut mcus = Vec::with_capacity(decoder.mcu_width_num() as usize);
+    let mut height = decoder.height();
     while let Some(mcu) = reader.next().unwrap() {
         let rgb = decoder.decode(mcu);
         mcus.push(rgb);
         if mcus.len() == decoder.mcu_width_num() as usize {
             for h in 0..decoder.mcu_height() {
-                for mcu in &mcus {
-                    for rgb in mcu.line(h as usize) {
-                        writer.write(rgb).unwrap();
-                    }
+                for rgb in mcus
+                    .iter()
+                    .flat_map(|mcu| mcu.line(h as usize))
+                    .take(decoder.width() as _)
+                {
+                    writer.write(rgb).unwrap();
+                }
+                height -= 1;
+                if height == 0 {
+                    break;
                 }
             }
             mcus.clear();
