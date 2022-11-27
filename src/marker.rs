@@ -1,39 +1,61 @@
 use super::{error, Decoder};
-use num_enum::TryFromPrimitive;
 use std::io::{Read, Result};
 use tracing::debug;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
-#[repr(u8)]
+/// JPEG markers
+///
+/// <https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG>
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Marker {
     /// Start Of Image
-    SOI = 0xD8,
-    /// Application specific 0
-    APP0 = 0xE0,
-    /// Application specific 1
-    APP1 = 0xE1,
-    /// Application specific C
-    APPC = 0xEC,
-    /// Define Quantization Table
-    DQT = 0xDB,
+    SOI,
+    /// Start Of Frame (Baseline DCT)
+    SOF0,
+    /// Start Of Frame (Progressive DCT)
+    SOF2,
     /// Define Huffman Table
-    DHT = 0xC4,
-    /// Start Of Frame (baseline)
-    SOF0 = 0xC0,
-    /// Start Of Scan
-    SOS = 0xDA,
+    DHT,
+    /// Define Quantization Table
+    DQT,
     /// Define Restart Interval
-    DRI = 0xDD,
+    DRI,
+    /// Start Of Scan
+    SOS,
+    /// Restart
+    RST(u8),
+    /// Application specific
+    APP(u8),
     /// Comment
-    COM = 0xFE,
+    COM,
     /// End Of Image
-    EOI = 0xD9,
+    EOI,
 }
 
 impl Marker {
     /// The prefix of a marker.
     const PREFIX: u8 = 0xFF;
+}
+
+impl TryFrom<u8> for Marker {
+    type Error = ();
+
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        match value {
+            0xC0 => Ok(Marker::SOF0),
+            0xC2 => Ok(Marker::SOF2),
+            0xC4 => Ok(Marker::DHT),
+            0xD0..=0xD7 => Ok(Marker::RST(value - 0xD0)),
+            0xD8 => Ok(Marker::SOI),
+            0xD9 => Ok(Marker::EOI),
+            0xDA => Ok(Marker::SOS),
+            0xDB => Ok(Marker::DQT),
+            0xDD => Ok(Marker::DRI),
+            0xE0..=0xEF => Ok(Marker::APP(value - 0xE0)),
+            0xFE => Ok(Marker::COM),
+            _ => Err(()),
+        }
+    }
 }
 
 impl<R: Read> Decoder<R> {
@@ -66,7 +88,7 @@ mod tests {
     #[test]
     fn test_read_marker() {
         use Marker::*;
-        let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
+        let file = std::fs::File::open("cat.jpeg").expect("failed to read file");
         let mut decoder = Decoder::new(file);
         let mut markers = vec![];
         loop {
@@ -76,9 +98,10 @@ mod tests {
                 break;
             }
         }
+        #[rustfmt::skip]
         assert_eq!(
             markers,
-            vec![SOI, APP0, APPC, DQT, DQT, SOF0, DHT, DHT, DHT, DHT, SOS, EOI]
+            vec![SOI, APP(0), APP(0xC), DQT, DQT, SOF0, DHT, DHT, DHT, DHT, SOS, EOI]
         );
     }
 }
