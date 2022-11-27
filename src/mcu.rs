@@ -17,6 +17,7 @@ pub struct Mcu {
 
 /// 8x8 Block.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(align(32))] // optimize
 pub struct Block(pub [i16; 64]);
 
 impl Debug for Block {

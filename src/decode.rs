@@ -68,7 +68,7 @@ impl McuDecoder {
 }
 
 impl Mcu {
-    fn to_rgb(&self, sof: &StartOfFrameInfo) -> McuRGB {
+    pub fn to_rgb(&self, sof: &StartOfFrameInfo) -> McuRGB {
         let mut blocks =
             Vec::with_capacity((sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize);
 
@@ -136,11 +136,11 @@ impl Block {
             35, 36, 48, 49, 57, 58, 62, 63,
         ];
 
-        let mut x = [0; 64];
+        let mut x = Block::uninit();
         for i in 0..64 {
-            x[i] = self.0[ZIGZAG[i]];
+            x.0[i] = self.0[ZIGZAG[i]];
         }
-        Block(x)
+        x
     }
 
     pub fn idct(&self) -> Self {
@@ -164,7 +164,7 @@ impl Block {
             };
         }
 
-        let mut tmp: [i16; 64] = [0; 64];
+        let mut res = Block::uninit();
         let this = self.to_f32();
         let idct = &*IDCT;
         for i in 0..8 {
@@ -175,21 +175,27 @@ impl Block {
                         v += cc(x, y) * idct[i][x] * idct[j][y] * this[x * 8 + y];
                     }
                 }
-                tmp[i * 8 + j] = (v / 4.0).round() as i16;
+                res.0[i * 8 + j] = (v / 4.0).round() as i16;
             }
         }
-        Block(tmp)
+        res
     }
 
-    fn upsample_2x2(&self, oh: usize, ow: usize) -> Self {
-        let mut x = [0; 64];
+    pub fn upsample_2x2(&self, oh: usize, ow: usize) -> Self {
+        let mut x = Block::uninit();
         for i in 0..64 {
-            x[i] = self.0[(oh * 8 + i / 8) / 2 * 8 + (ow * 8 + i % 8) / 2];
+            x.0[i] = self.0[(oh * 8 + i / 8) / 2 * 8 + (ow * 8 + i % 8) / 2];
         }
-        Block(x)
+        x
     }
 
-    fn to_f32(&self) -> [f32; 64] {
+    pub fn to_f32(&self) -> [f32; 64] {
         self.0.map(f32::from)
+    }
+
+    #[allow(invalid_value)]
+    #[inline]
+    fn uninit() -> Self {
+        unsafe { std::mem::MaybeUninit::uninit().assume_init() }
     }
 }

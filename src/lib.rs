@@ -6,7 +6,7 @@ mod marker;
 pub mod mcu;
 pub mod ppm;
 mod quantization_table;
-mod start_of_frame_0;
+pub mod start_of_frame_0;
 mod start_of_scan;
 
 use tracing::debug;
