@@ -72,15 +72,6 @@ impl Mcu {
         let mut blocks =
             Vec::with_capacity((sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize);
 
-        fn chomp(x: f32) -> u8 {
-            if x >= 255.0 {
-                return 255;
-            } else if x <= 0.0 {
-                return 0;
-            } else {
-                return x.round() as u8;
-            }
-        }
         let size = sof
             .component_infos
             .map(|c| c.horizontal_sampling * c.vertical_sampling);
@@ -104,9 +95,12 @@ impl Mcu {
                 };
                 let mut rgb = [RGB::default(); 64];
                 for i in 0..64 {
-                    let r = chomp(y[i] + 1.402 * cr[i] + 128.0);
-                    let g = chomp(y[i] - 0.34414 * cb[i] - 0.71414 * cr[i] + 128.0);
-                    let b = chomp(y[i] + 1.772 * cb[i] + 128.0);
+                    fn chomp(x: f32) -> u8 {
+                        x.round() as i8 as u8 + 128
+                    }
+                    let r = chomp(y[i] + 1.402 * cr[i]);
+                    let g = chomp(y[i] - 0.34414 * cb[i] - 0.71414 * cr[i]);
+                    let b = chomp(y[i] + 1.772 * cb[i]);
                     rgb[i] = RGB { r, g, b };
                 }
                 blocks.push(rgb)
@@ -181,7 +175,7 @@ impl Block {
                         v += cc(x, y) * idct[i][x] * idct[j][y] * this[x * 8 + y];
                     }
                 }
-                tmp[i * 8 + j] = (v / 4.0) as i16;
+                tmp[i * 8 + j] = (v / 4.0).round() as i16;
             }
         }
         Block(tmp)
