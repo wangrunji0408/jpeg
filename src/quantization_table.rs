@@ -5,7 +5,7 @@ use tracing::debug;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuantizationTable {
     pub id: u8,
-    pub values: [u16; 64],
+    pub values: [i16; 64],
 }
 
 impl<R: Read> Decoder<R> {
@@ -23,17 +23,17 @@ impl<R: Read> Decoder<R> {
             debug!(id, precision, "read quantization table");
             match precision {
                 0 => {
-                    let mut values = [0u16; 64];
+                    let mut values = [0; 64];
                     for v in &mut values {
-                        *v = self.read_byte()? as u16;
+                        *v = self.read_byte()? as i16;
                     }
                     tables.push(QuantizationTable { id, values });
                     len -= 1 + 64;
                 }
                 1 => {
-                    let mut values = [0u16; 64];
+                    let mut values = [0; 64];
                     for v in &mut values {
-                        *v = self.read_u16()?;
+                        *v = self.read_u16()? as i16;
                     }
                     tables.push(QuantizationTable { id, values });
                     len -= 1 + 128;
