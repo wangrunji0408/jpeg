@@ -1,6 +1,5 @@
 use crate::{
     mcu::{Block, Mcu},
-    quantization_table::QuantizationTable,
     start_of_frame_0::StartOfFrameInfo,
 };
 
@@ -26,45 +25,6 @@ pub struct RGB {
     pub r: u8,
     pub g: u8,
     pub b: u8,
-}
-
-pub struct McuDecoder {
-    sof: StartOfFrameInfo,
-    qts: Vec<QuantizationTable>,
-}
-
-impl McuDecoder {
-    pub fn new(sof: StartOfFrameInfo, qts: Vec<QuantizationTable>) -> Self {
-        McuDecoder { sof, qts }
-    }
-
-    pub fn width(&self) -> u16 {
-        self.sof.width
-    }
-
-    pub fn height(&self) -> u16 {
-        self.sof.height
-    }
-
-    pub fn mcu_width_num(&self) -> u16 {
-        self.sof.mcu_width_num()
-    }
-
-    pub fn mcu_height(&self) -> u16 {
-        self.sof.mcu_height()
-    }
-
-    pub fn decode(&self, mut mcu: Mcu) -> McuRGB {
-        let mut i = 0;
-        for component in &self.sof.component_infos {
-            let qt = &self.qts[component.quant_table_id as usize].values;
-            for _ in 0..component.horizontal_sampling * component.vertical_sampling {
-                mcu.blocks[i] = mcu.blocks[i].dequantize(qt).zigzag().idct();
-                i += 1;
-            }
-        }
-        mcu.to_rgb(&self.sof)
-    }
 }
 
 impl Mcu {

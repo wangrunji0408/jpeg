@@ -11,7 +11,6 @@ mod start_of_scan;
 
 use tracing::debug;
 
-use self::decode::McuDecoder;
 use self::marker::Marker;
 use self::mcu::McuReader;
 
@@ -26,27 +25,32 @@ impl<R: Read> Decoder<R> {
         }
     }
 
-    pub fn read(mut self) -> Result<(McuReader<R>, McuDecoder)> {
+    pub fn read(mut self) -> Result<McuReader<R>> {
         let mut quantization_tables = vec![];
         let mut huffman_tables = vec![];
         let mut sof = None;
-        let mut restart_interval = None;
+        let mut _restart_interval = None;
         loop {
             match self.next_marker()? {
                 Marker::EOI => return Err(error("unexpected EOI")),
                 Marker::DQT => quantization_tables.extend(self.read_quantization_table()?),
                 Marker::DHT => huffman_tables.extend(self.read_huffman_table()?),
                 Marker::SOF0 => sof = Some(self.read_start_of_frame_0()?),
-                Marker::DRI => restart_interval = Some(self.read_restart_interval()?),
+                Marker::DRI => _restart_interval = Some(self.read_restart_interval()?),
                 Marker::SOS => break,
                 _ => {}
             }
         }
         let sos = self.read_start_of_scan()?;
         let sof = sof.take().expect("SOF not found");
-        let reader = McuReader::new(self.reader, sof.clone(), sos, &huffman_tables)?;
-        let decoder = McuDecoder::new(sof, quantization_tables);
-        Ok((reader, decoder))
+        let reader = McuReader::new(
+            self.reader,
+            sof.clone(),
+            sos,
+            quantization_tables,
+            huffman_tables,
+        )?;
+        Ok(reader)
     }
 
     fn read_restart_interval(&mut self) -> Result<u16> {

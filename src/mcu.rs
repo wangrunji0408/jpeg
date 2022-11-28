@@ -1,6 +1,8 @@
 use crate::{
+    decode::McuRGB,
     error,
     huffman::{HuffmanTable, HuffmanTree},
+    quantization_table::QuantizationTable,
     start_of_frame_0::StartOfFrameInfo,
     start_of_scan::StartOfScanInfo,
 };
@@ -35,6 +37,7 @@ impl Debug for Block {
 pub struct McuReader<R: Read> {
     reader: BitReader<R>,
     sof: StartOfFrameInfo,
+    qts: Vec<QuantizationTable>,
     huffman_tables: Vec<(HuffmanTree, HuffmanTree)>,
     last_dc: [i16; 3],
     i: usize,
@@ -47,7 +50,8 @@ impl<R: Read> McuReader<R> {
         decoder: BufReader<R>,
         sof: StartOfFrameInfo,
         sos: StartOfScanInfo,
-        huffman: &[HuffmanTable],
+        qts: Vec<QuantizationTable>,
+        huffman: Vec<HuffmanTable>,
     ) -> Result<Self> {
         let mut huffman_tables = Vec::with_capacity(3);
         for id in sos.table_mapping {
@@ -65,6 +69,7 @@ impl<R: Read> McuReader<R> {
             reader: BitReader::new(decoder),
             total: sof.mcu_height_num() as usize * sof.mcu_width_num() as usize,
             sof,
+            qts,
             huffman_tables,
             last_dc: [0; 3],
             i: 0,
@@ -72,10 +77,11 @@ impl<R: Read> McuReader<R> {
     }
 
     /// Read a minimum coded unit (MCU).
-    pub fn next(&mut self) -> Result<Option<Mcu>> {
+    pub fn next(&mut self) -> Result<Option<McuRGB>> {
         if self.i == self.total {
             return Ok(None);
         }
+        self.i += 1;
         if self.reader.reset {
             self.reader.reset();
             self.last_dc = [0; 3];
@@ -89,8 +95,36 @@ impl<R: Read> McuReader<R> {
                 }
             }
         }
-        self.i += 1;
-        Ok(Some(Mcu { blocks }))
+        let rgb = self.decode(Mcu { blocks });
+        Ok(Some(rgb))
+    }
+
+    pub fn width(&self) -> u16 {
+        self.sof.width
+    }
+
+    pub fn height(&self) -> u16 {
+        self.sof.height
+    }
+
+    pub fn mcu_width_num(&self) -> u16 {
+        self.sof.mcu_width_num()
+    }
+
+    pub fn mcu_height(&self) -> u16 {
+        self.sof.mcu_height()
+    }
+
+    fn decode(&self, mut mcu: Mcu) -> McuRGB {
+        let mut i = 0;
+        for component in &self.sof.component_infos {
+            let qt = &self.qts[component.quant_table_id as usize].values;
+            for _ in 0..component.horizontal_sampling * component.vertical_sampling {
+                mcu.blocks[i] = mcu.blocks[i].dequantize(qt).zigzag().idct();
+                i += 1;
+            }
+        }
+        mcu.to_rgb(&self.sof)
     }
 
     /// Read a minimum coded unit (MCU).
@@ -216,7 +250,7 @@ mod tests {
         // tracing_subscriber::fmt::init();
         let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let decoder = Decoder::new(file);
-        let (mut reader, _) = decoder.read().unwrap();
+        let mut reader = decoder.read().unwrap();
         while let Some(_mcu) = reader.next().unwrap() {}
     }
 
