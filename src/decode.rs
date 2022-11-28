@@ -145,7 +145,8 @@ impl Block {
 
     pub fn idct(&self) -> Self {
         lazy_static::lazy_static! {
-            static ref IDCT: [[f32; 8]; 8] = {
+            // 10bit fixed point
+            static ref IDCT: [[i32; 8]; 8] = {
                 use std::f32::consts::PI;
                 let mut m = [[0.0; 8]; 8];
                 for i in 0..8 {
@@ -154,22 +155,23 @@ impl Block {
                     }
                     m[i][0] *= 1.0 / 2_f32.sqrt();
                 }
-                m
+                m.map(|m| m.map(|f| (f * 1024.0) as i32))
             };
         }
 
         let mut res = Block::uninit();
-        let this = self.to_f32();
+        let this = self.to_i32();
         let idct = &*IDCT;
         for i in 0..8 {
             for j in 0..8 {
-                let mut v = 0.0;
+                // 20bit fixed point
+                let mut v = 0;
                 for x in 0..8 {
                     for y in 0..8 {
-                        v += idct[i][x] * idct[j][y] * this[x * 8 + y];
+                        v += this[x * 8 + y] * idct[i][x] * idct[j][y];
                     }
                 }
-                res.0[i * 8 + j] = (v / 4.0).round() as i16;
+                res.0[i * 8 + j] = ((v / 4) >> 20) as i16;
             }
         }
         res
@@ -185,6 +187,10 @@ impl Block {
 
     pub fn to_f32(&self) -> [f32; 64] {
         self.0.map(f32::from)
+    }
+
+    pub fn to_i32(&self) -> [i32; 64] {
+        self.0.map(i32::from)
     }
 
     #[allow(invalid_value)]
