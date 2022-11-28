@@ -180,9 +180,19 @@ impl Block {
     }
 
     pub fn upsample_2x2(&self, oh: usize, ow: usize) -> Self {
+        match (oh, ow) {
+            (0, 0) => self.upsample_2x2_inline::<0, 0>(),
+            (0, 1) => self.upsample_2x2_inline::<0, 1>(),
+            (1, 0) => self.upsample_2x2_inline::<1, 0>(),
+            (1, 1) => self.upsample_2x2_inline::<1, 1>(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn upsample_2x2_inline<const I: usize, const J: usize>(&self) -> Self {
         let mut x = Block::uninit();
         for i in 0..64 {
-            x.0[i] = self.0[(oh * 8 + i / 8) / 2 * 8 + (ow * 8 + i % 8) / 2];
+            x.0[i] = self.0[(I * 8 + i / 8) / 2 * 8 + (J * 8 + i % 8) / 2];
         }
         x
     }
