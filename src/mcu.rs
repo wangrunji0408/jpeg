@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{
     fmt::Debug,
-    io::{BufReader, Read, Result},
+    io::{BufRead, BufReader, Read, Result},
 };
 
 /// Minimum Coded Unit.
@@ -185,9 +185,9 @@ impl<R: Read> BitReader<R> {
     }
 
     pub fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
-        let x = self.peek(16)?;
+        let x = self.peek_16()?;
         let (len, val) = map.get(x);
-        assert_ne!(len, 0);
+        debug_assert_ne!(len, 0);
         self.consume(len);
         // tracing::debug!("haffman: {len} {val}");
         Ok(val)
@@ -207,6 +207,34 @@ impl<R: Read> BitReader<R> {
         Ok(v)
     }
 
+    /// Peek the next 16 bits.
+    fn peek_16(&mut self) -> Result<u16> {
+        // fast path
+        if self.reset {
+            self.buf <<= 16 - self.count;
+            self.count = 16;
+            return Ok(self.buf as u16);
+        }
+        let buf = self.reader.buffer();
+        if buf.len() >= 2 && buf[0] != 0xFF && buf[1] != 0xFF {
+            if self.count < 8 {
+                // read 2 bytes
+                self.buf = (self.buf << 16) | ((buf[0] as u32) << 8) | buf[1] as u32;
+                self.count += 16;
+                self.reader.consume(2);
+                return Ok((self.buf >> (self.count - 16)) as u16);
+            } else if self.count < 16 {
+                // read 1 byte
+                self.buf = (self.buf << 8) | buf[0] as u32;
+                self.count += 8;
+                self.reader.consume(1);
+                return Ok((self.buf >> (self.count - 16)) as u16);
+            }
+        }
+        // slow path
+        self.peek(16)
+    }
+
     /// Peek the next `n` bits.
     fn peek(&mut self, n: u8) -> Result<u16> {
         debug_assert!(n <= 16);
@@ -216,11 +244,9 @@ impl<R: Read> BitReader<R> {
                 self.count = n;
                 return Ok(self.buf as u16);
             }
-            let mut b = 0;
-            self.reader.read(std::slice::from_mut(&mut b))?;
+            let b = self.read_byte()?;
             if b == 0xFF {
-                let mut c = 0;
-                self.reader.read_exact(std::slice::from_mut(&mut c))?;
+                let c = self.read_byte()?;
                 // skip RSTn (0xDn) or EOI (0xD9)
                 if c != 0 {
                     self.reset = true;
@@ -237,6 +263,13 @@ impl<R: Read> BitReader<R> {
     fn consume(&mut self, n: u8) {
         self.count -= n;
         self.buf &= (1 << self.count) - 1;
+    }
+
+    /// Read a byte. (optimized)
+    fn read_byte(&mut self) -> Result<u8> {
+        let b = self.reader.fill_buf()?[0];
+        self.reader.consume(1);
+        Ok(b)
     }
 }
 
