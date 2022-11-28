@@ -75,32 +75,35 @@ impl Mcu {
         let size = sof
             .component_infos
             .map(|c| c.horizontal_sampling * c.vertical_sampling);
+        assert!(size[1] == 1 && size[2] == 1, "only support 4:4:4 or 4:1:1");
         let offset = [0, size[0] as usize, (size[0] + size[1]) as usize];
         for v in 0..sof.max_vertical_sampling {
             for h in 0..sof.max_horizontal_sampling {
-                let y = self.blocks[(v * sof.max_horizontal_sampling + h) as usize].to_f32();
+                let y = self.blocks[(v * sof.max_horizontal_sampling + h) as usize];
                 let cb = if size[1] == 1 && sof.max_vertical_sampling == 2 {
-                    self.blocks[offset[1]]
-                        .upsample_2x2(v as usize, h as usize)
-                        .to_f32()
+                    self.blocks[offset[1]].upsample_2x2(v as usize, h as usize)
                 } else {
-                    self.blocks[offset[1]].to_f32()
+                    self.blocks[offset[1]]
                 };
                 let cr = if size[2] == 1 && sof.max_vertical_sampling == 2 {
-                    self.blocks[offset[2]]
-                        .upsample_2x2(v as usize, h as usize)
-                        .to_f32()
+                    self.blocks[offset[2]].upsample_2x2(v as usize, h as usize)
                 } else {
-                    self.blocks[offset[2]].to_f32()
+                    self.blocks[offset[2]]
                 };
                 let mut rgb = [RGB::default(); 64];
                 for i in 0..64 {
-                    fn chomp(x: f32) -> u8 {
-                        x.round() as i8 as u8 + 128
+                    fn chomp(x: i32) -> u8 {
+                        ((x >> 10).clamp(i8::MIN as _, i8::MAX as _) as i8 as u8) ^ 0x80
                     }
-                    let r = chomp(y[i] + 1.402 * cr[i]);
-                    let g = chomp(y[i] - 0.34414 * cb[i] - 0.71414 * cr[i]);
-                    let b = chomp(y[i] + 1.772 * cb[i]);
+                    fn fixed(x: f32) -> i32 {
+                        (x * 1024.0) as i32
+                    }
+                    let y = y.0[i] as i32;
+                    let cb = cb.0[i] as i32;
+                    let cr = cr.0[i] as i32;
+                    let r = chomp(fixed(1.0) * y + fixed(1.402) * cr);
+                    let g = chomp(fixed(1.0) * y - fixed(0.344) * cb - fixed(0.714) * cr);
+                    let b = chomp(fixed(1.0) * y + fixed(1.772) * cb);
                     rgb[i] = RGB { r, g, b };
                 }
                 blocks.push(rgb)
@@ -146,7 +149,7 @@ impl Block {
     pub fn idct(&self) -> Self {
         lazy_static::lazy_static! {
             // 10bit fixed point
-            static ref IDCT: [[i32; 8]; 8] = {
+            static ref IDCT: [[i16; 8]; 8] = {
                 use std::f32::consts::PI;
                 let mut m = [[0.0; 8]; 8];
                 for i in 0..8 {
@@ -155,12 +158,11 @@ impl Block {
                     }
                     m[i][0] *= 1.0 / 2_f32.sqrt();
                 }
-                m.map(|m| m.map(|f| (f * 1024.0) as i32))
+                m.map(|m| m.map(|f| (f * 1024.0) as i16))
             };
         }
 
         let mut res = Block::uninit();
-        let this = self.to_i32();
         let idct = &*IDCT;
         for i in 0..8 {
             for j in 0..8 {
@@ -168,7 +170,7 @@ impl Block {
                 let mut v = 0;
                 for x in 0..8 {
                     for y in 0..8 {
-                        v += this[x * 8 + y] * idct[i][x] * idct[j][y];
+                        v += self.0[x * 8 + y] as i32 * idct[i][x] as i32 * idct[j][y] as i32;
                     }
                 }
                 res.0[i * 8 + j] = ((v / 4) >> 20) as i16;
@@ -183,14 +185,6 @@ impl Block {
             x.0[i] = self.0[(oh * 8 + i / 8) / 2 * 8 + (ow * 8 + i % 8) / 2];
         }
         x
-    }
-
-    pub fn to_f32(&self) -> [f32; 64] {
-        self.0.map(f32::from)
-    }
-
-    pub fn to_i32(&self) -> [i32; 64] {
-        self.0.map(i32::from)
     }
 
     #[allow(invalid_value)]

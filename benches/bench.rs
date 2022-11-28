@@ -13,7 +13,6 @@ fn block(c: &mut Criterion) {
     c.bench_function("zigzag", |b| b.iter(|| block.zigzag()));
     c.bench_function("dequantize", |b| b.iter(|| block.dequantize(&[1; 64])));
     c.bench_function("upsample", |b| b.iter(|| block.upsample_2x2(0, 0)));
-    c.bench_function("to_f32", |b| b.iter(|| block.to_f32()));
 }
 
 fn mcu(c: &mut Criterion) {
