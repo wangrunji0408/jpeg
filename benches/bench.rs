@@ -1,10 +1,11 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use jpeg_labs::{
-    mcu::{Block, Mcu},
+    mcu::{BitReader, Block, Mcu},
     start_of_frame_0::{ComponentInfo, StartOfFrameInfo},
 };
+use std::io::BufReader;
 
-criterion_group!(benches, block, mcu);
+criterion_group!(benches, block, mcu, bitreader);
 criterion_main!(benches);
 
 fn block(c: &mut Criterion) {
@@ -51,4 +52,16 @@ fn mcu(c: &mut Criterion) {
         max_vertical_sampling: 1,
     };
     c.bench_function("yuv444_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
+}
+
+fn bitreader(c: &mut Criterion) {
+    let mut group = c.benchmark_group("read_value");
+
+    for size in [1, 2, 4, 8, 16] {
+        let mut reader = BitReader::new(BufReader::new(std::io::repeat(0x00)));
+        group.throughput(Throughput::Bytes(size));
+        group.bench_function(size.to_string(), |b| {
+            b.iter(|| reader.read_value(size as u8))
+        });
+    }
 }

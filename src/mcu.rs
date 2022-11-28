@@ -158,7 +158,7 @@ impl<R: Read> McuReader<R> {
     }
 }
 
-struct BitReader<R: Read> {
+pub struct BitReader<R: Read> {
     reader: BufReader<R>,
     buf: u32,
     /// The lower `count` bits of `buf` is valid.
@@ -169,7 +169,7 @@ struct BitReader<R: Read> {
 }
 
 impl<R: Read> BitReader<R> {
-    fn new(reader: BufReader<R>) -> Self {
+    pub fn new(reader: BufReader<R>) -> Self {
         Self {
             reader,
             buf: 0,
@@ -184,7 +184,7 @@ impl<R: Read> BitReader<R> {
         self.reset = false;
     }
 
-    fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
+    pub fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
         let x = self.peek(16)?;
         let (len, val) = map.get(x);
         assert_ne!(len, 0);
@@ -194,7 +194,7 @@ impl<R: Read> BitReader<R> {
     }
 
     /// Read an encoded value in length.
-    fn read_value(&mut self, len: u8) -> Result<i16> {
+    pub fn read_value(&mut self, len: u8) -> Result<i16> {
         if len == 0 {
             return Ok(0);
         }
@@ -212,9 +212,9 @@ impl<R: Read> BitReader<R> {
         debug_assert!(n <= 16);
         while self.count < n {
             if self.reset {
-                self.buf <<= 8;
-                self.count += 8;
-                continue;
+                self.buf <<= n - self.count;
+                self.count = n;
+                return Ok(self.buf as u16);
             }
             let mut b = 0;
             self.reader.read(std::slice::from_mut(&mut b))?;
