@@ -27,7 +27,7 @@ pub struct RGB {
     pub b: u8,
 }
 
-impl Mcu {
+impl Mcu<'_> {
     pub fn to_rgb(&self, sof: &StartOfFrameInfo) -> McuRGB {
         let mut blocks = Vec::<[RGB; 64]>::with_capacity(
             (sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize,
