@@ -29,17 +29,22 @@ pub struct RGB {
 
 impl Mcu {
     pub fn to_rgb(&self, sof: &StartOfFrameInfo) -> McuRGB {
-        let mut blocks =
-            Vec::with_capacity((sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize);
+        let mut blocks = Vec::<[RGB; 64]>::with_capacity(
+            (sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize,
+        );
+        unsafe {
+            blocks.set_len(blocks.capacity());
+        }
 
         let size = sof
             .component_infos
             .map(|c| c.horizontal_sampling * c.vertical_sampling);
         assert!(size[1] == 1 && size[2] == 1, "only support 4:4:4 or 4:1:1");
         let offset = [0, size[0] as usize, (size[0] + size[1]) as usize];
+        let mut i = 0;
         for v in 0..sof.max_vertical_sampling {
             for h in 0..sof.max_horizontal_sampling {
-                let y = self.blocks[(v * sof.max_horizontal_sampling + h) as usize];
+                let y = self.blocks[i];
                 let cb = if size[1] == 1 && sof.max_vertical_sampling == 2 {
                     self.blocks[offset[1]].upsample_2x2(v as usize, h as usize)
                 } else {
@@ -50,7 +55,7 @@ impl Mcu {
                 } else {
                     self.blocks[offset[2]]
                 };
-                let mut rgb = [RGB::default(); 64];
+                let rgb = &mut blocks[i];
                 for i in 0..64 {
                     fn chomp(x: i32) -> u8 {
                         ((x >> 10).clamp(i8::MIN as _, i8::MAX as _) as i8 as u8) ^ 0x80
@@ -66,7 +71,7 @@ impl Mcu {
                     let b = chomp(fixed(1.0) * y + fixed(1.772) * cb);
                     rgb[i] = RGB { r, g, b };
                 }
-                blocks.push(rgb)
+                i += 1;
             }
         }
         McuRGB {
@@ -79,9 +84,9 @@ impl Mcu {
 
 impl Block {
     pub fn dequantize(&self, qt: &[i16; 64]) -> Self {
-        let mut block = *self;
+        let mut block = Block::uninit();
         for i in 0..64 {
-            block.0[i] *= qt[i];
+            block.0[i] = self.0[i] * qt[i];
         }
         block
     }
