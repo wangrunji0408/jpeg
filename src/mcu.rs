@@ -42,6 +42,7 @@ pub struct McuReader<R: Read> {
     last_dc: [i16; 3],
     i: usize,
     total: usize,
+    reset_interval: Option<u16>,
 }
 
 impl<R: Read> McuReader<R> {
@@ -52,6 +53,7 @@ impl<R: Read> McuReader<R> {
         sos: StartOfScanInfo,
         qts: Vec<QuantizationTable>,
         huffman: Vec<HuffmanTable>,
+        reset_interval: Option<u16>,
     ) -> Result<Self> {
         let mut huffman_tables = Vec::with_capacity(3);
         for id in sos.table_mapping {
@@ -68,6 +70,7 @@ impl<R: Read> McuReader<R> {
         Ok(McuReader {
             reader: BitReader::new(decoder),
             total: sof.mcu_height_num() as usize * sof.mcu_width_num() as usize,
+            reset_interval,
             sof,
             qts,
             huffman_tables,
@@ -82,10 +85,6 @@ impl<R: Read> McuReader<R> {
             return Ok(None);
         }
         self.i += 1;
-        if self.reader.reset {
-            self.reader.reset();
-            self.last_dc = [0; 3];
-        }
         let mut blocks = Vec::with_capacity(6);
         for (id, component) in self.sof.component_infos.clone().iter().enumerate() {
             for _ in 0..component.vertical_sampling {
@@ -96,6 +95,10 @@ impl<R: Read> McuReader<R> {
             }
         }
         let rgb = self.decode(Mcu { blocks });
+        if matches!(self.reset_interval, Some(r) if self.i % r as usize == 0) {
+            self.reader.reset()?;
+            self.last_dc = [0; 3];
+        }
         Ok(Some(rgb))
     }
 
@@ -163,9 +166,6 @@ pub struct BitReader<R: Read> {
     buf: u32,
     /// The lower `count` bits of `buf` is valid.
     count: u8,
-    /// Meet a RST or EOI marker.
-    /// If set, should not read from `reader` any more and always return 0.
-    reset: bool,
 }
 
 impl<R: Read> BitReader<R> {
@@ -174,14 +174,23 @@ impl<R: Read> BitReader<R> {
             reader,
             buf: 0,
             count: 0,
-            reset: false,
         }
     }
 
-    fn reset(&mut self) {
+    /// Clear buffer and consume the next marker.
+    fn reset(&mut self) -> Result<()> {
+        if self.count < 8 {
+            // marker not peeked
+            let mut buf = [0; 2];
+            self.reader.read_exact(&mut buf)?;
+            assert_eq!(buf[0], 0xFF);
+        } else {
+            // marker peeked
+            debug_assert_eq!(self.count, 16);
+        }
         self.buf = 0;
         self.count = 0;
-        self.reset = false;
+        Ok(())
     }
 
     pub fn read_decode_haffman(&mut self, map: &HuffmanTree) -> Result<u8> {
@@ -210,11 +219,6 @@ impl<R: Read> BitReader<R> {
     /// Peek the next 16 bits.
     fn peek_16(&mut self) -> Result<u16> {
         // fast path
-        if self.reset {
-            self.buf <<= 16 - self.count;
-            self.count = 16;
-            return Ok(self.buf as u16);
-        }
         let buf = self.reader.buffer();
         if buf.len() >= 2 && buf[0] != 0xFF && buf[1] != 0xFF {
             if self.count < 8 {
@@ -238,23 +242,23 @@ impl<R: Read> BitReader<R> {
     /// Peek the next `n` bits.
     fn peek(&mut self, n: u8) -> Result<u16> {
         debug_assert!(n <= 16);
-        while self.count < n {
-            if self.reset {
-                self.buf <<= n - self.count;
-                self.count = n;
-                return Ok(self.buf as u16);
+        // optimize for unroll
+        for _ in 0..2 {
+            if self.count >= n {
+                break;
             }
             let b = self.read_byte()?;
-            if b == 0xFF {
-                let c = self.read_byte()?;
-                // skip RSTn (0xDn) or EOI (0xD9)
-                if c != 0 {
-                    self.reset = true;
-                    continue;
-                }
-            }
             self.buf = (self.buf << 8) | b as u32;
             self.count += 8;
+            if b == 0xFF {
+                let c = self.read_byte()?;
+                // RSTn (0xDn) or EOI (0xD9)
+                if c != 0 {
+                    // append 0x00, but expect not to read it
+                    self.buf <<= 8;
+                    self.count += 8;
+                }
+            }
         }
         Ok((self.buf >> (self.count - n)) as u16)
     }

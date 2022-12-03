@@ -29,14 +29,14 @@ impl<R: Read> Decoder<R> {
         let mut quantization_tables = vec![];
         let mut huffman_tables = vec![];
         let mut sof = None;
-        let mut _restart_interval = None;
+        let mut restart_interval = None;
         loop {
             match self.next_marker()? {
                 Marker::EOI => return Err(error("unexpected EOI")),
                 Marker::DQT => quantization_tables.extend(self.read_quantization_table()?),
                 Marker::DHT => huffman_tables.extend(self.read_huffman_table()?),
                 Marker::SOF0 => sof = Some(self.read_start_of_frame_0()?),
-                Marker::DRI => _restart_interval = Some(self.read_restart_interval()?),
+                Marker::DRI => restart_interval = Some(self.read_restart_interval()?),
                 Marker::SOS => break,
                 _ => {}
             }
@@ -49,6 +49,7 @@ impl<R: Read> Decoder<R> {
             sos,
             quantization_tables,
             huffman_tables,
+            restart_interval,
         )?;
         Ok(reader)
     }

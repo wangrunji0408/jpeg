@@ -38,7 +38,7 @@ fn mcu(c: &mut Criterion) {
         max_horizontal_sampling: 2,
         max_vertical_sampling: 2,
     };
-    c.bench_function("yuv411_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
+    c.bench_function("yuv420_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
 
     let mcu = Mcu {
         blocks: vec![Block([0; 64]); 3],
