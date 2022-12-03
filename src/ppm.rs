@@ -13,7 +13,9 @@ impl<W: Write> PpmWriter<W> {
         Ok(PpmWriter { writer })
     }
 
-    pub fn write(&mut self, pixel: RGB) -> Result<()> {
-        self.writer.write_all(&[pixel.r, pixel.g, pixel.b])
+    pub fn write_slice(&mut self, pixel: &[RGB]) -> Result<()> {
+        let buf =
+            unsafe { std::slice::from_raw_parts(pixel.as_ptr() as *const u8, pixel.len() * 3) };
+        self.writer.write_all(buf)
     }
 }

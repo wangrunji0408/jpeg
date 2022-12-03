@@ -27,12 +27,11 @@ fn main() {
         mcus.push(mcu);
         if mcus.len() == decoder.mcu_width_num() as usize {
             for h in 0..decoder.mcu_height() {
-                for mcu in mcus
-                    .iter()
-                    .flat_map(|mcu| mcu.line(h as usize))
-                    .take(decoder.width() as _)
-                {
-                    writer.write(mcu).unwrap();
+                let mut width = decoder.width() as usize;
+                for mcu in mcus.iter().flat_map(|mcu| mcu.line(h as usize)) {
+                    let len = mcu.len().min(width);
+                    writer.write_slice(&mcu[..len]).unwrap();
+                    width -= len;
                 }
                 height -= 1;
                 if height == 0 {

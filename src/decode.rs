@@ -12,15 +12,16 @@ pub struct McuRGB {
 }
 
 impl McuRGB {
-    pub fn line(&self, h: usize) -> impl Iterator<Item = RGB> + '_ {
+    pub fn line(&self, h: usize) -> impl Iterator<Item = &[RGB]> + '_ {
         let wb = self.width_blocks as usize;
         self.blocks[h / 8 * wb..(h / 8 + 1) * wb]
             .iter()
-            .flat_map(move |b| b[h % 8 * 8..(h % 8 + 1) * 8].iter().cloned())
+            .map(move |b| &b[h % 8 * 8..(h % 8 + 1) * 8])
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(C)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,
