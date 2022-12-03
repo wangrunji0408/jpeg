@@ -1,4 +1,4 @@
-use std::io::{BufReader, Read, Result};
+use std::io::{BufRead, BufReader, Read, Result};
 
 mod decode;
 mod huffman;
@@ -37,6 +37,7 @@ impl<R: Read> Decoder<R> {
                 Marker::DHT => huffman_tables.extend(self.read_huffman_table()?),
                 Marker::SOF0 => sof = Some(self.read_start_of_frame_0()?),
                 Marker::DRI => restart_interval = Some(self.read_restart_interval()?),
+                Marker::APP(_) => self.skip_app()?,
                 Marker::SOS => break,
                 _ => {}
             }
@@ -63,6 +64,18 @@ impl<R: Read> Decoder<R> {
         let interval = self.read_u16()?;
         debug!(interval, "restart interval");
         Ok(interval)
+    }
+
+    fn skip_app(&mut self) -> Result<()> {
+        let len = self.read_u16()?;
+        debug!(len, "read section APP?");
+        let mut len = len as usize - 2;
+        while len != 0 {
+            let l = self.reader.fill_buf()?.len().min(len);
+            self.reader.consume(l);
+            len -= l;
+        }
+        Ok(())
     }
 
     /// Read a byte.
