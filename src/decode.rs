@@ -71,17 +71,17 @@ impl Mcu {
                 let rgb = &mut blocks[i];
                 for i in 0..64 {
                     fn chomp(x: i32) -> u8 {
-                        ((x >> 10).clamp(i8::MIN as _, i8::MAX as _) as i8 as u8) ^ 0x80
+                        (((x >> 10) as i16).clamp(i8::MIN as _, i8::MAX as _) as i8 as u8) ^ 0x80
                     }
                     fn fixed(x: f32) -> i32 {
                         (x * 1024.0) as i32
                     }
-                    let y = y.0[i] as i32;
+                    let y = (y.0[i] as i32) << 10;
                     let cb = cb.0[i] as i32;
                     let cr = cr.0[i] as i32;
-                    let r = chomp(fixed(1.0) * y + fixed(1.402) * cr);
-                    let g = chomp(fixed(1.0) * y - fixed(0.344) * cb - fixed(0.714) * cr);
-                    let b = chomp(fixed(1.0) * y + fixed(1.772) * cb);
+                    let r = chomp(y + fixed(1.402) * cr);
+                    let g = chomp(y - fixed(0.344) * cb - fixed(0.714) * cr);
+                    let b = chomp(y + fixed(1.772) * cb);
                     rgb[i] = RGB { r, g, b };
                 }
                 i += 1;
