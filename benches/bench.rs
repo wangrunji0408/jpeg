@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use jpeg_labs::{
     mcu::{BitReader, Block, Mcu},
+    quantization_table::QuantizationTable,
     start_of_frame_0::{ComponentInfo, StartOfFrameInfo},
 };
 use smallvec::smallvec;
@@ -18,9 +19,19 @@ fn block(c: &mut Criterion) {
 }
 
 fn mcu(c: &mut Criterion) {
-    let mcu = Mcu {
+    let mut mcu = Mcu {
         blocks: smallvec![Block([0; 64]); 6],
     };
+    let qts = [
+        QuantizationTable {
+            id: 0,
+            values: [1; 64],
+        },
+        QuantizationTable {
+            id: 1,
+            values: [1; 64],
+        },
+    ];
     let s2 = ComponentInfo {
         horizontal_sampling: 2,
         vertical_sampling: 2,
@@ -39,9 +50,10 @@ fn mcu(c: &mut Criterion) {
         max_horizontal_sampling: 2,
         max_vertical_sampling: 2,
     };
+    c.bench_function("yuv420_itrans", |b| b.iter(|| mcu.itrans(&sof, &qts)));
     c.bench_function("yuv420_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
 
-    let mcu = Mcu {
+    let mut mcu = Mcu {
         blocks: smallvec![Block([0; 64]); 3],
     };
     let sof = StartOfFrameInfo {
@@ -52,6 +64,7 @@ fn mcu(c: &mut Criterion) {
         max_horizontal_sampling: 1,
         max_vertical_sampling: 1,
     };
+    c.bench_function("yuv444_itrans", |b| b.iter(|| mcu.itrans(&sof, &qts)));
     c.bench_function("yuv444_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
 }
 

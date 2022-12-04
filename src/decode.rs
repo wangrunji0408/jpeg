@@ -1,5 +1,6 @@
 use crate::{
     mcu::{Block, Mcu},
+    quantization_table::QuantizationTable,
     start_of_frame_0::StartOfFrameInfo,
 };
 
@@ -29,6 +30,17 @@ pub struct RGB {
 }
 
 impl Mcu {
+    pub fn itrans(&mut self, sof: &StartOfFrameInfo, qts: &[QuantizationTable]) {
+        let mut i = 0;
+        for component in &sof.component_infos {
+            let qt = &qts[component.quant_table_id as usize].values;
+            for _ in 0..component.horizontal_sampling * component.vertical_sampling {
+                self.blocks[i] = self.blocks[i].dequantize(qt).zigzag().idct();
+                i += 1;
+            }
+        }
+    }
+
     pub fn to_rgb(&self, sof: &StartOfFrameInfo) -> McuRGB {
         let mut blocks = Vec::<[RGB; 64]>::with_capacity(
             (sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize,
@@ -106,8 +118,10 @@ impl Block {
         ];
 
         let mut x = Block::uninit();
-        for i in 0..64 {
-            x.0[i] = self.0[ZIGZAG[i]];
+        for i in 0..8 {
+            for j in 0..8 {
+                x.0[i * 8 + j] = self.0[ZIGZAG[i * 8 + j]];
+            }
         }
         x
     }
@@ -157,8 +171,10 @@ impl Block {
 
     fn upsample_2x2_inline<const I: usize, const J: usize>(&self) -> Self {
         let mut x = Block::uninit();
-        for i in 0..64 {
-            x.0[i] = self.0[(I * 8 + i / 8) / 2 * 8 + (J * 8 + i % 8) / 2];
+        for i in 0..8 {
+            for j in 0..8 {
+                x.0[i * 8 + j] = self.0[(I * 8 + i) / 2 * 8 + (J * 8 + j) / 2];
+            }
         }
         x
     }

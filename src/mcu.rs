@@ -96,7 +96,9 @@ impl<R: Read> McuReader<R> {
                 }
             }
         }
-        let rgb = self.decode(mcu);
+        mcu.itrans(&self.sof, &self.qts);
+        let rgb = mcu.to_rgb(&self.sof);
+
         if matches!(self.reset_interval, Some(r) if self.i % r as usize == 0) {
             self.reader.reset()?;
             self.last_dc = [0; 3];
@@ -118,18 +120,6 @@ impl<R: Read> McuReader<R> {
 
     pub fn mcu_height(&self) -> u16 {
         self.sof.mcu_height()
-    }
-
-    fn decode(&self, mut mcu: Mcu) -> McuRGB {
-        let mut i = 0;
-        for component in &self.sof.component_infos {
-            let qt = &self.qts[component.quant_table_id as usize].values;
-            for _ in 0..component.horizontal_sampling * component.vertical_sampling {
-                mcu.blocks[i] = mcu.blocks[i].dequantize(qt).zigzag().idct();
-                i += 1;
-            }
-        }
-        mcu.to_rgb(&self.sof)
     }
 
     /// Read a minimum coded unit (MCU).

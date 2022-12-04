@@ -5,7 +5,7 @@ mod huffman;
 mod marker;
 pub mod mcu;
 pub mod ppm;
-mod quantization_table;
+pub mod quantization_table;
 pub mod start_of_frame_0;
 mod start_of_scan;
 
@@ -41,6 +41,9 @@ impl<R: Read> Decoder<R> {
                 Marker::SOS => break,
                 _ => {}
             }
+        }
+        for (i, qt) in quantization_tables.iter().enumerate() {
+            assert_eq!(qt.id, i as u8);
         }
         let sos = self.read_start_of_scan()?;
         let sof = sof.take().expect("SOF not found");
