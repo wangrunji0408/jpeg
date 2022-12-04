@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use jpeg_labs::{
+    huffman::HuffmanTree,
     mcu::{BitReader, Block, Mcu},
     quantization_table::QuantizationTable,
     start_of_frame_0::{ComponentInfo, StartOfFrameInfo},
@@ -77,5 +78,16 @@ fn bitreader(c: &mut Criterion) {
         group.bench_function(size.to_string(), |b| {
             b.iter(|| reader.read_value(size as u8))
         });
+    }
+    drop(group);
+
+    let mut group = c.benchmark_group("read_huffman");
+    {
+        let mut huffman = HuffmanTree::new();
+        huffman.insert(0x0000, 16, 1);
+
+        let mut reader = BitReader::new(BufReader::new(std::io::repeat(0x00)));
+        group.throughput(Throughput::Bytes(16));
+        group.bench_function("16", |b| b.iter(|| reader.read_decode_haffman(&huffman)));
     }
 }

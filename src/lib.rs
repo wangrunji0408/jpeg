@@ -1,7 +1,7 @@
 use std::io::{BufRead, BufReader, Read, Result};
 
 mod decode;
-mod huffman;
+pub mod huffman;
 mod marker;
 pub mod mcu;
 pub mod ppm;

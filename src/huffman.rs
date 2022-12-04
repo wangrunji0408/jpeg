@@ -28,14 +28,14 @@ pub struct HuffmanTree {
 }
 
 impl HuffmanTree {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         HuffmanTree {
             len: [0; 1 << 16],
             val: [0; 1 << 16],
         }
     }
 
-    fn insert(&mut self, code: u16, len: u8, val: u8) {
+    pub fn insert(&mut self, code: u16, len: u8, val: u8) {
         assert!(len <= 16);
         let base = (code << (16 - len)) as usize;
         let range = base..=(base | ((1 << (16 - len)) - 1));
@@ -65,6 +65,7 @@ impl<R: Read> Decoder<R> {
             debug!(?class, "read huffman table");
             let mut counts = [0; 16];
             self.reader.read_exact(&mut counts)?;
+            debug!(?counts, "leaf nodes");
             len -= 1 + 16;
 
             let mut code = 0;
