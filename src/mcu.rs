@@ -1,3 +1,5 @@
+use smallvec::SmallVec;
+
 use crate::{
     decode::McuRGB,
     error,
@@ -12,9 +14,9 @@ use std::{
 };
 
 /// Minimum Coded Unit.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Mcu<'a> {
-    pub blocks: &'a mut [Block],
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Mcu {
+    pub blocks: SmallVec<[Block; 6]>,
 }
 
 /// 8x8 Block.
@@ -85,20 +87,16 @@ impl<R: Read> McuReader<R> {
             return Ok(None);
         }
         self.i += 1;
-        #[allow(invalid_value)]
-        let mut blocks: [Block; 6] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
-        let mut i = 0;
+        let mut mcu = Mcu::default();
         for (id, component) in self.sof.component_infos.clone().iter().enumerate() {
             for _ in 0..component.vertical_sampling {
                 for _ in 0..component.horizontal_sampling {
-                    blocks[i] = self.read_block(id)?;
-                    i += 1;
+                    let block = self.read_block(id)?;
+                    mcu.blocks.push(block);
                 }
             }
         }
-        let rgb = self.decode(Mcu {
-            blocks: &mut blocks[..i],
-        });
+        let rgb = self.decode(mcu);
         if matches!(self.reset_interval, Some(r) if self.i % r as usize == 0) {
             self.reader.reset()?;
             self.last_dc = [0; 3];
@@ -122,7 +120,7 @@ impl<R: Read> McuReader<R> {
         self.sof.mcu_height()
     }
 
-    fn decode(&self, mcu: Mcu) -> McuRGB {
+    fn decode(&self, mut mcu: Mcu) -> McuRGB {
         let mut i = 0;
         for component in &self.sof.component_infos {
             let qt = &self.qts[component.quant_table_id as usize].values;

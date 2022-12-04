@@ -337,6 +337,7 @@ dependencies = [
  "criterion",
  "lazy_static",
  "num_enum",
+ "smallvec",
  "tracing",
  "tracing-subscriber",
 ]

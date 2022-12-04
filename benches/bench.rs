@@ -3,6 +3,7 @@ use jpeg_labs::{
     mcu::{BitReader, Block, Mcu},
     start_of_frame_0::{ComponentInfo, StartOfFrameInfo},
 };
+use smallvec::smallvec;
 use std::io::BufReader;
 
 criterion_group!(benches, block, mcu, bitreader);
@@ -18,7 +19,7 @@ fn block(c: &mut Criterion) {
 
 fn mcu(c: &mut Criterion) {
     let mcu = Mcu {
-        blocks: vec![Block([0; 64]); 6],
+        blocks: smallvec![Block([0; 64]); 6],
     };
     let s2 = ComponentInfo {
         horizontal_sampling: 2,
@@ -41,7 +42,7 @@ fn mcu(c: &mut Criterion) {
     c.bench_function("yuv420_to_rgb", |b| b.iter(|| mcu.to_rgb(&sof)));
 
     let mcu = Mcu {
-        blocks: vec![Block([0; 64]); 3],
+        blocks: smallvec![Block([0; 64]); 3],
     };
     let sof = StartOfFrameInfo {
         precision: 8,
