@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_read_marker() {
         use Marker::*;
-        let file = std::fs::File::open("cat.jpeg").expect("failed to read file");
+        let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let mut decoder = Decoder::new(file);
         let mut markers = vec![];
         loop {

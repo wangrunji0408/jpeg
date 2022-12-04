@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use std::io::{BufRead, BufReader, Read, Result};
 
 mod decode;
@@ -49,7 +51,7 @@ impl<R: Read> Decoder<R> {
         let sof = sof.take().expect("SOF not found");
         let reader = McuReader::new(
             self.reader,
-            sof.clone(),
+            sof,
             sos,
             quantization_tables,
             huffman_tables,

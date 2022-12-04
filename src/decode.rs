@@ -23,6 +23,7 @@ impl McuRGB {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,
@@ -45,6 +46,7 @@ impl Mcu {
         let mut blocks = Vec::<[RGB; 64]>::with_capacity(
             (sof.max_horizontal_sampling * sof.max_vertical_sampling) as usize,
         );
+        #[allow(clippy::uninit_vec)]
         unsafe {
             blocks.set_len(blocks.capacity());
         }
@@ -145,6 +147,7 @@ impl Block {
         let idct = &*IDCT;
         // 1D IDCT
         #[allow(invalid_value)]
+        #[allow(clippy::uninit_assumed_init)]
         let mut res1: [i32; 64] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
         for i in 0..8 {
             for j in 0..8 {
@@ -192,6 +195,7 @@ impl Block {
     }
 
     #[allow(invalid_value)]
+    #[allow(clippy::uninit_assumed_init)]
     #[inline]
     fn uninit() -> Self {
         unsafe { std::mem::MaybeUninit::uninit().assume_init() }

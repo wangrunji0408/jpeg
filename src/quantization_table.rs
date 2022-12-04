@@ -1,5 +1,8 @@
 use super::{error, Decoder};
-use std::{io::{Read, Result}, fmt::Debug};
+use std::{
+    fmt::Debug,
+    io::{Read, Result},
+};
 use tracing::debug;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -73,20 +76,22 @@ mod tests {
         let file = std::fs::File::open("data/autumn.jpg").expect("failed to read file");
         let mut decoder = Decoder::new(file);
         while decoder.next_marker().expect("failed to read marker") != Marker::DQT {}
-        let dqts = decoder.read_quantization_table().expect("failed to read DQT");
+        let dqts = decoder
+            .read_quantization_table()
+            .expect("failed to read DQT");
         assert_eq!(
             dqts,
             vec![QuantizationTable {
                 id: 0,
                 #[rustfmt::skip]
                 values: [
-                     3,  2,  2,  2,  2,  2,  3,  2, 
-                     2,  2,  3,  3,  3,  3,  4,  6, 
-                     4,  4,  4,  4,  4,  8,  6,  6, 
-                     5,  6,  9,  8, 10, 10,  9,  8, 
+                     3,  2,  2,  2,  2,  2,  3,  2,
+                     2,  2,  3,  3,  3,  3,  4,  6,
+                     4,  4,  4,  4,  4,  8,  6,  6,
+                     5,  6,  9,  8, 10, 10,  9,  8,
                      9,  9, 10, 12, 15, 12, 10, 11,
                     14, 11,  9,  9, 13, 17, 13, 14,
-                    15, 16, 16, 17, 16, 10, 12, 18, 
+                    15, 16, 16, 17, 16, 10, 12, 18,
                     19, 18, 16, 19, 15, 16, 16, 16,
                 ]
             }]

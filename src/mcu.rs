@@ -82,6 +82,7 @@ impl<R: Read> McuReader<R> {
     }
 
     /// Read a minimum coded unit (MCU).
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Result<Option<McuRGB>> {
         if self.i == self.total {
             return Ok(None);
