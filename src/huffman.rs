@@ -23,15 +23,13 @@ pub enum HuffmanTableClass {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HuffmanTree {
-    len: [u8; 1 << 16],
-    val: [u8; 1 << 16],
+    len_val: [(u8, u8); 1 << 16],
 }
 
 impl HuffmanTree {
     pub const fn new() -> Self {
         HuffmanTree {
-            len: [0; 1 << 16],
-            val: [0; 1 << 16],
+            len_val: [(0, 0); 1 << 16],
         }
     }
 
@@ -39,15 +37,12 @@ impl HuffmanTree {
         assert!(len <= 16);
         let base = (code << (16 - len)) as usize;
         let range = base..=(base | ((1 << (16 - len)) - 1));
-        self.len[range.clone()].fill(len);
-        self.val[range].fill(val);
+        self.len_val[range].fill((len, val));
     }
 
     /// Decode a value from the stream. Return (len, val).
     pub fn get(&self, code: u16) -> (u8, u8) {
-        let len = self.len[code as usize];
-        let val = self.val[code as usize];
-        (len, val)
+        self.len_val[code as usize]
     }
 }
 
