@@ -138,25 +138,37 @@ impl Block {
                     }
                     m[i][0] *= 1.0 / 2_f32.sqrt();
                 }
-                m.map(|m| m.map(|f| (f * 1024.0) as i16))
+                m.map(|m| m.map(|f| (f * 1024.0).round() as i16))
             };
         }
 
-        let mut res = Block::uninit();
         let idct = &*IDCT;
+        // 1D IDCT
+        #[allow(invalid_value)]
+        let mut res1: [i32; 64] = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
         for i in 0..8 {
             for j in 0..8 {
+                // 10bit fixed point
+                let mut v = 0;
+                for x in 0..8 {
+                    v += self.0[i * 8 + x] as i32 * idct[j][x] as i32;
+                }
+                res1[j * 8 + i] = v;
+            }
+        }
+        // 1D IDCT
+        let mut res2 = Block::uninit();
+        for j in 0..8 {
+            for i in 0..8 {
                 // 20bit fixed point
                 let mut v = 0;
                 for x in 0..8 {
-                    for y in 0..8 {
-                        v += self.0[x * 8 + y] as i32 * idct[i][x] as i32 * idct[j][y] as i32;
-                    }
+                    v += res1[j * 8 + x] * idct[i][x] as i32;
                 }
-                res.0[i * 8 + j] = ((v / 4) >> 20) as i16;
+                res2.0[i * 8 + j] = ((v / 4) >> 20) as i16;
             }
         }
-        res
+        res2
     }
 
     pub fn upsample_2x2(&self, oh: usize, ow: usize) -> Self {
